@@ -1,7 +1,7 @@
 import streamlit as st
 import yfinance as yf
 
-st.title("📈 종목 검색색")
+st.title("📈 종목 검색")
 ticker = st.text_input("티커 입력", placeholder="AAPL, TSLA, 005930 등")
 
 if ticker:
