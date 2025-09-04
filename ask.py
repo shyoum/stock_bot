@@ -25,7 +25,7 @@ def get_stock_recommendations(strategy):
     api_key = "AIzaSyBdNmMTS_p19O7Vna5ldyAiFGDL1QVVMsg"
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
     
-    prompt = f"{strategy} + json 형식으로 보여줘."
+    prompt = f"{strategy}"
     
     payload = {
         "contents": [{
