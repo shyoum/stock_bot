@@ -3,9 +3,15 @@ import google.generativeai as genai
 from PIL import Image
 
 def main():
-    st.title("🧠 전략 분석기")
+    st.title("차트 분석")
     
-    genai.configure(api_key="AIzaSyBdNmMTS_p19O7Vna5ldyAiFGDL1QVVMsg")
+    api_key = st.text_input("Gemini API 키를 입력하세요", type="password")
+    
+    if not api_key:
+        st.warning("API 키를 입력해주세요")
+        return
+    
+    genai.configure(api_key=api_key)
     model = genai.GenerativeModel("gemini-2.5-flash")
     
     strategy = st.text_area("전략을 입력하세요:", height=200)
