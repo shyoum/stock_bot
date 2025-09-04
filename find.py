@@ -134,9 +134,8 @@ def main():
         # 최종 결과
         st.write("## 🎯 최종 선발 종목")
         if selected_stocks:
-            for ticker, score, chart_fig in selected_stocks:
-                st.write(f"### **{ticker}** - {score}점")
-                st.plotly_chart(chart_fig, use_container_width=True, key=f"final_{ticker}")
+            for ticker, score in selected_stocks:
+                st.write(f"• **{ticker}**: {score}점")
         else:
             st.warning("기준 점수 이상인 종목이 없습니다.")
 
