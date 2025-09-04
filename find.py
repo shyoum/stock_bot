@@ -7,6 +7,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import io
 import base64
+import requests
 
 def main():
     st.title("🔍 종목 발굴기")
@@ -25,25 +26,7 @@ def main():
     model = genai.GenerativeModel("gemini-2.5-flash")
     
     if st.button("종목 분석 시작"):
-        with st.spinner("NASDAQ 종목 준비 중..."):
-            # NASDAQ 종목 리스트 준비
-            nasdaq_tickers = fdr.StockListing('NASDAQ')['Symbol'].tolist()
-            np.random.shuffle(nasdaq_tickers)
-            
-            # 유효한 종목만 필터링
-            valid_tickers = []
-            for t in nasdaq_tickers[:200]:  # 처음 200개만 체크
-                try:
-                    df = fdr.DataReader(t, '2025-01-01')
-                    if not df.empty and len(df) > 100:
-                        valid_tickers.append(t)
-                        if len(valid_tickers) >= 50:
-                            break
-                except:
-                    continue
-            
-            # 5개씩 10개 그룹 생성
-            groups = [valid_tickers[i:i+5] for i in range(0, min(50, len(valid_tickers)), 5)]
+        with st.spinner("인기 종목 준비 중
         
         selected_stocks = []
         
@@ -114,7 +97,8 @@ def main():
                     if score >= min_score:
                         selected_stocks.append((ticker, score))
                         st.success(f"✅ {ticker} 선발! (점수: {score})")
-                        st.plotly_chart(fig, use_container_width=True)
+                    else:
+                        st.info(f"❌ {ticker} 탈락 (점수: {score})")
                     
                 except Exception as e:
                     st.error(f"{ticker} 분석 실패: {e}")
