@@ -2,4 +2,4 @@ yfinance
 plotly
 google.generativeai
 kaleido
-FinanceDataReader
+finance-datareader
