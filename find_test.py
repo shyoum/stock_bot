@@ -37,13 +37,25 @@ def get_tickers():
         
         for exchange in ['NASDAQ', 'NYSE', 'AMEX', 'KRX']:
             try:
+                st.write(f"{exchange} 종목 로딩 중...")
                 df = fdr.StockListing(exchange)
                 if 'Symbol' in df.columns:
-                    tickers.extend(df['Symbol'].dropna().tolist())
-            except: continue
+                    exchange_tickers = df['Symbol'].dropna().tolist()
+                    tickers.extend(exchange_tickers)
+                    st.write(f"{exchange}: {len(exchange_tickers)}개 종목")
+            except Exception as e:
+                st.write(f"{exchange} 로딩 실패: {str(e)[:50]}")
+                continue
         
-        return list(set([str(t).strip() for t in tickers if len(str(t).strip()) > 0]))[:3000]
-    except:
+        tickers = list(set([str(t).strip() for t in tickers if len(str(t).strip()) > 0]))[:3000]
+        st.write(f"총 {len(tickers)}개 종목 준비 완료")
+        return tickers
+        
+    except ImportError:
+        st.error("FinanceDataReader가 설치되지 않았습니다: pip install FinanceDataReader")
+        return []
+    except Exception as e:
+        st.error(f"종목 로딩 중 오류: {str(e)}")
         return []
 
 def analyze_random_10(strategy, model):
