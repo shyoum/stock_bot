@@ -5,9 +5,6 @@ import pandas as pd
 import google.generativeai as genai
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-import io
-import base64
-import requests
 
 def main():
     st.title("🔍 종목 발굴기")
@@ -26,7 +23,25 @@ def main():
     model = genai.GenerativeModel("gemini-2.5-flash")
     
     if st.button("종목 분석 시작"):
-        with st.spinner("인기 종목 준비 중
+        with st.spinner("NASDAQ 종목 준비 중..."):
+            # NASDAQ 종목 리스트 준비
+            nasdaq_tickers = fdr.StockListing('NASDAQ')['Symbol'].tolist()
+            np.random.shuffle(nasdaq_tickers)
+            
+            # 유효한 종목만 필터링
+            valid_tickers = []
+            for t in nasdaq_tickers[:200]:
+                try:
+                    df = fdr.DataReader(t, '2025-01-01')
+                    if not df.empty and len(df) > 100:
+                        valid_tickers.append(t)
+                        if len(valid_tickers) >= 50:
+                            break
+                except:
+                    continue
+            
+            # 5개씩 10개 그룹 생성
+            groups = [valid_tickers[i:i+5] for i in range(0, min(50, len(valid_tickers)), 5)]
         
         selected_stocks = []
         
@@ -72,20 +87,32 @@ def main():
                         height=600
                     )
                     
-                    # 차트를 이미지로 변환
-                    img_bytes = fig.to_image(format="png")
+                    # 차트 표시 후 분석
+                    st.plotly_chart(fig, use_container_width=True, key=f"chart_{ticker}")
+                    
+                    # 차트 데이터를 텍스트로 변환하여 분석
+                    chart_summary = f"""
+                    종목: {ticker}
+                    기간: 최근 6개월
+                    현재가: ${chart_data['Close'].iloc[-1]:.2f}
+                    최고가: ${chart_data['High'].max():.2f}
+                    최저가: ${chart_data['Low'].min():.2f}
+                    변동률: {((chart_data['Close'].iloc[-1] / chart_data['Close'].iloc[0] - 1) * 100):.1f}%
+                    평균 거래량: {chart_data['Volume'].mean():.0f}
+                    """
                     
                     # Gemini로 분석
                     prompt = f"""
-                    이 주식 차트를 보고 다음 전략과 얼마나 일치하는지 1-10점으로 평가해주세요.
+                    다음 주식 정보를 보고 이 전략과 얼마나 일치하는지 1-10점으로 평가해주세요.
                     
                     전략: {strategy}
-                    종목: {ticker}
+                    
+                    {chart_summary}
                     
                     점수만 숫자로 답변해주세요. (예: 8)
                     """
                     
-                    response = model.generate_content([prompt, {"mime_type": "image/png", "data": img_bytes}])
+                    response = model.generate_content(prompt)
                     
                     try:
                         score = int(response.text.strip())
