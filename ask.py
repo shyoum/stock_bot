@@ -1,44 +1,22 @@
 import streamlit as st
-import requests
-import json
+import google.generativeai as genai
 
 def main():
-    """투자전략 기반 종목추천 메인 함수"""
-    st.title("🎯 투자전략 기반 종목추천")
+    st.title("🧠 전략 분석기")
     
-    strategy = st.text_input("투자전략을 입력하세요", placeholder="예: 배당수익률이 높은 안정적인 대형주")
+    genai.configure(api_key="AIzaSyBdNmMTS_p19O7Vna5ldyAiFGDL1QVVMsg")
+    model = genai.GenerativeModel("gemini-2.5-flash")
     
-    if strategy and st.button("종목 추천 받기"):
-        with st.spinner("AI가 종목을 분석하고 있습니다..."):
+    strategy = st.text_area("전략을 입력하세요:", height=200)
+    
+    if st.button("분석하기") and strategy:
+        with st.spinner("분석 중..."):
             try:
-                result = get_stock_recommendations(strategy)
-                if result:
-                    st.success("추천 완료!")
-                    st.json(result)
-                else:
-                    st.error("추천 결과를 받을 수 없습니다")
+                response = model.generate_content(strategy)
+                st.markdown("### 분석 결과")
+                st.write(response.text)
             except Exception as e:
-                st.error(f"오류 발생: {e}")
-
-def get_stock_recommendations(strategy):
-    """제미나이 API로 종목 추천 받기"""
-    api_key = "AIzaSyBdNmMTS_p19O7Vna5ldyAiFGDL1QVVMsg"
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
-    
-    prompt = strategy
-    
-    payload = {
-        "contents": [{
-            "parts": [{"text": prompt}]
-        }]
-    }
-    
-    response = requests.post(url, json=payload)
-    
-    if response.status_code == 200:
-        return response.json()['candidates'][0]['content']['parts'][0]['text']
-    else:
-        return None
+                st.error(f"오류: {e}")
 
 if __name__ == "__main__":
     from menu import show_menu
