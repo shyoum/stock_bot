@@ -25,7 +25,7 @@ def get_stock_recommendations(strategy):
     api_key = "AIzaSyBdNmMTS_p19O7Vna5ldyAiFGDL1QVVMsg"
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
     
-    prompt = f"{strategy}"
+    prompt = strategy
     
     payload = {
         "contents": [{
@@ -36,8 +36,7 @@ def get_stock_recommendations(strategy):
     response = requests.post(url, json=payload)
     
     if response.status_code == 200:
-        data = response.json()
-        return data['candidates'][0]['content']['parts'][0]['text']
+        return response.json()['candidates'][0]['content']['parts'][0]['text']
     else:
         return None
 
