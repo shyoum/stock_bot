@@ -4,7 +4,7 @@ from app import main as app_main
 
 # 자동 생성된 페이지 메뉴
 pages = {
-    "App": app_main,
+    "종목 검색": app_main,
 }
 
 def show_menu():
