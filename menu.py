@@ -3,12 +3,14 @@ import streamlit as st
 from app import main as app_main
 from ask import main as ask_main
 from find import main as find_main
+from find_test import main as find_test_main
 
 # 자동 생성된 페이지 메뉴
 pages = {
     "App": app_main,
     "Ask": ask_main,
     "Find": find_main,
+    "Find Test": find_test_main,
 }
 
 def show_menu():
