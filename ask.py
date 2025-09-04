@@ -11,15 +11,19 @@ def main():
     strategy = st.text_area("전략을 입력하세요:", height=200)
     uploaded_image = st.file_uploader("이미지 업로드 (선택사항)", type=['png', 'jpg', 'jpeg'])
     
+    
     if uploaded_image:
         st.image(uploaded_image, width=300)
+        image_to_use = uploaded_image
+    else:
+        image_to_use = None
     
     if st.button("분석하기") and strategy:
         with st.spinner("분석 중..."):
             try:
                 content = [strategy]
-                if uploaded_image:
-                    image = Image.open(uploaded_image)
+                if image_to_use:
+                    image = Image.open(image_to_use)
                     content.append(image)
                 
                 response = model.generate_content(content)
