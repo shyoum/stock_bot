@@ -11,7 +11,6 @@ import time
 
 def main():
     st.title("종목 추천")
-    st.info("이 앱은 차트 생성을 위해 'mplfinance' 패키지가 필요합니다. `pip install mplfinance`")
 
     # 사용자 입력
     api_key = st.text_input("Gemini API 키를 입력하세요", type="password")
@@ -129,10 +128,10 @@ def main():
                     6개월 변동률: {((chart_data['Close'].iloc[-1] / chart_data['Close'].iloc[0] - 1) * 100):.1f}%
                     """
                     prompt = f"""
-                    당신은 전문 차트 분석가입니다. 이 캔들차트를 보고 다음 투자 전략과 얼마나 일치하는지 1점에서 10점 사이로 평가해주세요.
+                    이 캔들차트를 보고 다음 투자 전략과 얼마나 일치하는지 10점 만점에 0.5점 단위로 평가해주세요.
                     투자 전략: {strategy}
                     종목 정보: {chart_summary}
-                    차트의 패턴, 추세, 이동평균선, 거래량 등을 종합적으로 분석하여 점수만 숫자로 답변해주세요. (예: 8)
+                    종목 정보보다는 첨부한 캔들차트 이미지를 중점적으로 분석하여서, 비판적이고 냉철하게 점수를 매겨주세요.
                     """
                     response = model.generate_content([prompt, img])
                     
