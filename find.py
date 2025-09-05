@@ -11,7 +11,7 @@ import time
 
 def main():
     st.title("종목 추천")
-    st.info("이 앱은 차트 생성을 위해 'mplfinance' 패키지가 필요합니다. `pip install mplfinance`")
+    st.info("Google Gemini 1.5 Flash 모델을 사용합니다.")
 
     # 사용자 입력
     api_key = st.text_input("Gemini API 키를 입력하세요", type="password")
