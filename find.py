@@ -19,8 +19,14 @@ def main():
     strategy_text = st.text_area("투자 전략을 '텍스트'로 입력하세요. (선택 사항)", 
                                  placeholder="예: 최근 꾸준히 우상향하며, 거래량이 증가하는 종목", height=100)
     
-    strategy_image_file = st.file_uploader("참고용 차트 이미지를 업로드하세요. (선택 사항)", 
-                                           type=['png', 'jpg', 'jpeg'], key="strategy_uploader")
+    strategy_image_files = st.file_uploader("참고용 차트 이미지를 업로드하세요. (최대 5개, 선택 사항)", 
+                                           type=['png', 'jpg', 'jpeg'], 
+                                           key="strategy_uploader",
+                                           accept_multiple_files=True)
+
+    if len(strategy_image_files) > 5:
+        st.warning("최대 5개의 이미지만 업로드할 수 있습니다. 처음 5개의 이미지만 사용됩니다.")
+        strategy_image_files = strategy_image_files[:5]
 
     min_score = st.slider("최소 점수 (유사도/일치도)", 1.0, 10.0, 7.0, 0.5)
 
@@ -39,15 +45,20 @@ def main():
     # --- 분석 시작 버튼 ---
     st.markdown("---")
     if st.button("🚀 종목 찾기 시작!"):
-        if not strategy_text and not strategy_image_file:
+        if not strategy_text and not strategy_image_files:
             st.error("분석을 시작하려면 '텍스트 전략'을 입력하거나 '참고용 차트 이미지'를 업로드해야 합니다.")
             return
 
-        strategy_image = None
-        if strategy_image_file is not None:
-            strategy_image = Image.open(strategy_image_file)
-            st.write("▼ 아래 참고 이미지를 기준으로 분석합니다.")
-            st.image(strategy_image, caption="참고용 차트 이미지", width=400)
+        strategy_images = []
+        if strategy_image_files:
+            st.write(f"▼ 아래 {len(strategy_image_files)}개의 참고 이미지를 기준으로 분석합니다.")
+            # Display images in columns for better layout
+            cols = st.columns(len(strategy_image_files))
+            for idx, uploaded_file in enumerate(strategy_image_files):
+                img = Image.open(uploaded_file)
+                strategy_images.append(img)
+                with cols[idx]:
+                    st.image(img, caption=f"참고용 차트 {idx+1}", use_column_width=True)
 
         with st.spinner("NASDAQ 종목 리스트를 불러오는 중..."):
             nasdaq_tickers = fdr.StockListing('NASDAQ')['Symbol'].tolist()
@@ -105,23 +116,27 @@ def main():
                 prompt = "당신은 전문 차트 분석가입니다. "
                 
                 # 시나리오 1: 텍스트와 이미지 모두 사용
-                if strategy_text and strategy_image:
+                if strategy_text and strategy_images:
                     prompt += f"""
-                    첨부된 두 개의 캔들차트 이미지('참고용 차트'와 '분석 대상 차트')를 비교하고, 다음 '텍스트 전략'도 함께 고려하여 종합적으로 평가해주세요.
+                    첨부된 {len(strategy_images)}개의 '참고용 차트'와 1개의 '분석 대상 차트'를 비교하고, 다음 '텍스트 전략'도 함께 고려하여 종합적으로 평가해주세요.
                     - 텍스트 전략: {strategy_text}
-                    - 평가 기준: '참고용 차트'와의 시각적 유사성과 '텍스트 전략'과의 일치도를 모두 고려하여, 최종 점수를 0점에서 10점 사이에서 0.5점 단위로 매겨주세요.
+                    - 평가 기준: '참고용 차트'들과의 전반적인 시각적 유사성과 '텍스트 전략'과의 일치도를 모두 고려하여, 최종 점수를 0점에서 10점 사이에서 0.5점 단위로 매겨주세요.
                     - 가장 중요한 것은 두 조건 모두 만족하는지 여부입니다. 점수만 간결하게 숫자로 답변해주세요. (예: 8.5)
                     """
-                    api_content = [prompt, strategy_image, img_to_analyze]
+                    api_content = [prompt]
+                    api_content.extend(strategy_images)
+                    api_content.append(img_to_analyze)
                 
                 # 시나리오 2: 이미지만 사용
-                elif strategy_image:
+                elif strategy_images:
                     prompt += f"""
-                    첨부된 두 개의 캔들차트 이미지('참고용 차트'와 '분석 대상 차트')를 비교 분석해주세요.
-                    두 차트의 패턴, 추세, 거래량 흐름 등이 얼마나 유사한지 시각적 유사성을 0점에서 10점 사이에서 0.5점 단위로 평가해주세요.
+                    첨부된 {len(strategy_images)}개의 '참고용 차트'와 1개의 '분석 대상 차트'를 비교 분석해주세요.
+                    '분석 대상 차트'가 '참고용 차트'들의 전반적인 패턴, 추세, 거래량 흐름 등과 얼마나 유사한지 시각적 유사성을 0점에서 10점 사이에서 0.5점 단위로 평가해주세요.
                     점수만 간결하게 숫자로 답변해주세요. (예: 8.5)
                     """
-                    api_content = [prompt, strategy_image, img_to_analyze]
+                    api_content = [prompt]
+                    api_content.extend(strategy_images)
+                    api_content.append(img_to_analyze)
 
                 # 시나리오 3: 텍스트만 사용
                 elif strategy_text:
