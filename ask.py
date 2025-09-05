@@ -3,7 +3,7 @@ import google.generativeai as genai
 from PIL import Image
 
 def main():
-    st.title("차트 분석")
+    st.title("분석 보고서")
     
     api_key = st.text_input("Gemini API 키를 입력하세요", type="password")
     

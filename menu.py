@@ -6,9 +6,9 @@ from find import main as find_main
 
 # 자동 생성된 페이지 메뉴
 pages = {
-    "App": app_main,
-    "Ask": ask_main,
-    "Find": find_main,
+    "종목 검색": app_main,
+    "분석 보고서": ask_main,
+    "종목 추천": find_main,
 }
 
 def show_menu():

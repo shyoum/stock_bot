@@ -2,7 +2,7 @@ import streamlit as st
 import yfinance as yf
 
 def main():
-    st.title("📈 종목 검색")
+    st.title("종목 검색")
     ticker = st.text_input("티커(종목코드) 입력", placeholder="AAPL, TSLA, 005930 등")
 
     if ticker:
