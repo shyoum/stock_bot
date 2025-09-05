@@ -110,10 +110,9 @@ def main():
                                  savefig=dict(fname=buf, dpi=150, format='png', bbox_inches='tight'))
                         
                         buf.seek(0)
-                        img = Image.open(buf)
-                        
-                        buf.seek(0)
+                        # 버퍼의 내용을 먼저 읽고, 그 다음에 Image 객체를 생성합니다.
                         chart_image_bytes = buf.read()
+                        img = Image.open(io.BytesIO(chart_image_bytes))
                         buf.close()
 
                     except Exception as plot_e:
