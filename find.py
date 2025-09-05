@@ -16,7 +16,7 @@ def main():
     # 사용자 입력
     api_key = st.text_input("Gemini API 키를 입력하세요", type="password")
     strategy = st.text_area("원하는 투자 전략을 입력하세요 (예: 최근 6개월간 꾸준히 우상향하며, 거래량이 증가하는 종목)", height=100)
-    min_score = st.slider("최소 점수", 0.0, 10.0, 7.0, 1.0)
+    min_score = st.slider("최소 점수", 0, 10, 7, 1)
 
     if not api_key or not strategy:
         st.warning("API 키와 투자 전략을 입력해 주세요.")
