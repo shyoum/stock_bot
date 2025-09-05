@@ -10,7 +10,7 @@ import re
 import time
 
 def main():
-    st.title("AI 차트 분석 기반 종목 추천")
+    st.title("종목 추천")
 
     # 사용자 입력
     api_key = st.text_input("Gemini API 키를 입력하세요", type="password")
