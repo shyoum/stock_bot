@@ -12,13 +12,14 @@ import time
 def main():
     st.title("종목 추천")
 
-    # 사용자 입력
+    # --- 공통 사용자 입력 ---
+    st.subheader("1. 기본 정보 입력")
     api_key = st.text_input("Gemini API 키를 입력하세요", type="password")
-    strategy = st.text_area("원하는 투자 전략을 입력하세요 (예: 최근 꾸준히 우상향하며, 거래량이 증가하는 종목)", height=100)
-    min_score = st.slider("최소 점수 (자동 분석용)", 1.0, 10.0, 7.0, 0.5)
+    strategy = st.text_area("원하는 투자 전략을 '텍스트'로 입력하세요 (옵션 1, 2 공통 사용)", 
+                            placeholder="예: 최근 꾸준히 우상향하며, 거래량이 증가하는 종목", height=100)
 
-    if not api_key or not strategy:
-        st.warning("API 키와 투자 전략을 입력해 주세요.")
+    if not api_key:
+        st.warning("API 키를 먼저 입력해 주세요.")
         return
 
     # API 설정
@@ -29,71 +30,85 @@ def main():
         st.error(f"API 키 설정에 실패했습니다: {e}")
         return
 
-    # 옵션 1: 이미지 업로드하여 분석
+    # --- 옵션 1: 단일 이미지 분석 ---
     st.markdown("---")
-    st.subheader("옵션 1: 차트 이미지 직접 분석")
-    uploaded_file = st.file_uploader("분석할 차트 이미지를 업로드하세요.", type=['png', 'jpg', 'jpeg'])
+    st.subheader("옵션 1: 특정 차트 이미지 1개 분석하기")
+    uploaded_file = st.file_uploader("분석할 차트 이미지를 업로드하세요.", type=['png', 'jpg', 'jpeg'], key="single_uploader")
 
     if uploaded_file is not None:
         st.image(uploaded_file, caption="업로드된 차트 이미지", use_container_width=True)
+        if not strategy:
+            st.warning("상단의 '텍스트 투자 전략'을 입력해야 이미지를 분석할 수 있습니다.")
+        
         if st.button("업로드 이미지 분석하기"):
-            with st.spinner("이미지를 분석 중입니다..."):
-                try:
-                    img = Image.open(uploaded_file)
-                    prompt = f"""
-                    당신은 전문 차트 분석가입니다. 이 캔들차트 이미지를 보고 다음 투자 전략과 얼마나 일치하는지 최소 0점, 최대 10점 범위에서 0.5점 단위로 평가해주세요.
-                    투자 전략: {strategy}
-                    첨부한 캔들차트 이미지를 중점적으로 분석하여서, 비판적이고 냉철하게 점수를 매겨주세요. 점수만 간결하게 숫자로 답변해주세요. (예: 8.5)
-                    """
-                    response = model.generate_content([prompt, img])
-                    
-                    # 결과 처리
-                    numbers = re.findall(r'[0-9]+\.?[0-9]*', response.text)
-                    if numbers:
-                        score = float(numbers[0])
-                        st.success(f"## 분석 점수: {score}점")
-                    else:
-                        st.warning(f"⚠️ 점수를 추출할 수 없습니다. (AI 응답: {response.text.strip()})")
+            if not strategy:
+                 st.error("텍스트 투자 전략을 입력해주세요.")
+            else:
+                with st.spinner("이미지를 분석 중입니다..."):
+                    try:
+                        img = Image.open(uploaded_file)
+                        prompt = f"""
+                        당신은 전문 차트 분석가입니다. 이 캔들차트 이미지를 보고 다음 투자 전략과 얼마나 일치하는지 최소 0점, 최대 10점 범위에서 0.5점 단위로 평가해주세요.
+                        투자 전략: {strategy}
+                        첨부한 캔들차트 이미지를 중점적으로 분석하여서, 비판적이고 냉철하게 점수를 매겨주세요. 점수만 간결하게 숫자로 답변해주세요. (예: 8.5)
+                        """
+                        response = model.generate_content([prompt, img])
+                        
+                        numbers = re.findall(r'[0-9]+\.?[0-9]*', response.text)
+                        if numbers:
+                            score = float(numbers[0])
+                            st.success(f"## 분석 점수: {score}점")
+                        else:
+                            st.warning(f"⚠️ 점수를 추출할 수 없습니다. (AI 응답: {response.text.strip()})")
 
-                except Exception as e:
-                    st.error(f"이미지 분석 중 오류가 발생했습니다: {e}")
+                    except Exception as e:
+                        st.error(f"이미지 분석 중 오류가 발생했습니다: {e}")
 
-    # 옵션 2: NASDAQ 종목 자동 분석
+    # --- 옵션 2: NASDAQ 종목 자동 탐색 ---
     st.markdown("---")
-    st.subheader("옵션 2: NASDAQ 종목 자동 분석")
+    st.subheader("옵션 2: NASDAQ에서 조건에 맞는 종목 찾기")
+    st.write("텍스트 전략을 사용하거나, 참고용 차트 이미지를 업로드하여 유사한 패턴의 종목을 찾을 수 있습니다.")
+    
+    strategy_image_file = st.file_uploader("참고용 차트 이미지를 업로드하세요. (선택 사항)", type=['png', 'jpg', 'jpeg'], key="strategy_uploader")
+    min_score = st.slider("최소 점수 (자동 분석용)", 1, 10, 7, 0)
+
     if st.button("자동 종목 분석 시작"):
+        if not strategy and strategy_image_file is None:
+            st.error("자동 분석을 시작하려면 텍스트 전략을 입력하거나, 참고용 차트 이미지를 업로드해야 합니다.")
+            return
+
+        strategy_image = None
+        if strategy_image_file is not None:
+            strategy_image = Image.open(strategy_image_file)
+            st.write("▼ 아래 참고 이미지를 기준으로 유사한 패턴의 종목을 검색합니다.")
+            st.image(strategy_image, caption="참고용 차트 이미지", width=400)
+
         with st.spinner("NASDAQ 종목 리스트를 불러오는 중..."):
             nasdaq_tickers = fdr.StockListing('NASDAQ')['Symbol'].tolist()
             np.random.shuffle(nasdaq_tickers)
-
             valid_tickers = []
             progress_bar = st.progress(0, text="유효한 종목을 찾는 중...")
             max_valid_tickers = 50
             
             for i, t in enumerate(nasdaq_tickers[:300]):
                 try:
-                    df = fdr.DataReader(t, '2025-01-01') # 날짜 수정
-                    if not df.empty and len(df) > 50: # 기간에 맞춰 조건 수정
+                    df = fdr.DataReader(t, '2025-01-01')
+                    if not df.empty and len(df) > 50:
                         valid_tickers.append(t)
                         progress_text = f"유효한 종목 찾는 중... ({len(valid_tickers)}/{max_valid_tickers})"
                         progress_bar.progress(len(valid_tickers) / max_valid_tickers, text=progress_text)
-                        if len(valid_tickers) >= max_valid_tickers:
-                            break
-                except Exception:
-                    continue
+                        if len(valid_tickers) >= max_valid_tickers: break
+                except Exception: continue
             progress_bar.empty()
         
         if len(valid_tickers) < 1:
              st.error("분석에 유효한 종목을 찾지 못했습니다. 다시 시도해주세요.")
              return
 
-        selected_stocks = []
+        selected_stocks, analyzed_count = [], 0
         analysis_progress = st.progress(0, text="분석 시작...")
-        total_tickers_to_analyze = len(valid_tickers)
-        analyzed_count = 0
-        
         st.write("---")
-        st.write(f"### 총 {total_tickers_to_analyze}개 종목 분석 시작")
+        st.write(f"### 총 {len(valid_tickers)}개 종목 분석 시작")
 
         for ticker in valid_tickers:
             if len(selected_stocks) >= 5:
@@ -101,43 +116,45 @@ def main():
                 break
             
             analyzed_count += 1
-            progress_text = f"분석 중: {ticker} ({analyzed_count}/{total_tickers_to_analyze})"
-            analysis_progress.progress(analyzed_count / total_tickers_to_analyze, text=progress_text)
+            progress_text = f"분석 중: {ticker} ({analyzed_count}/{len(valid_tickers)})"
+            analysis_progress.progress(analyzed_count / len(valid_tickers), text=progress_text)
             
             try:
-                # 1. 데이터 가져오기
-                st.write(f"⏳ {ticker}: 2025년 데이터를 가져오는 중...") # 메시지 수정
-                chart_data = fdr.DataReader(ticker, '2025-01-01') # 날짜 수정
+                chart_data = fdr.DataReader(ticker, '2025-01-01')
                 if chart_data.empty or len(chart_data) < 20:
                     st.warning(f"📈 {ticker}: 데이터가 부족하여 건너뜁니다.")
                     continue
 
-                # 2. 차트 이미지 생성
-                st.write(f"⏳ {ticker}: 차트 이미지를 생성하는 중...")
                 buf = io.BytesIO()
                 mpf.plot(chart_data, type='candle', mav=(20), volume=True,
-                         title=f"\n{ticker} 2025 YTD Chart", style='yahoo', # 제목 수정
+                         title=f"\n{ticker} 2025 YTD Chart", style='yahoo',
                          savefig=dict(fname=buf, dpi=150, format='png', bbox_inches='tight'))
                 buf.seek(0)
                 chart_image_bytes = buf.read()
                 img = Image.open(io.BytesIO(chart_image_bytes))
                 buf.close()
 
-                # 3. Gemini API 호출
-                st.write(f"⏳ {ticker}: Gemini API로 차트를 분석하는 중...")
-                chart_summary = f"""
-                종목: {ticker}, 현재가: ${chart_data['Close'].iloc[-1]:.2f}, 
-                올해 변동률: {((chart_data['Close'].iloc[-1] / chart_data['Close'].iloc[0] - 1) * 100):.1f}% 
-                """ # 텍스트 수정
-                prompt = f"""
-                이 캔들차트를 보고 다음 투자 전략과 얼마나 일치하는지 최소 0점, 최대 10점 범위에서 0.5점 단위로 평가해주세요.
-                투자 전략: {strategy}
-                종목 정보: {chart_summary}
-                종목 정보보다는 첨부한 캔들차트 이미지를 중점적으로 분석하여서, 비판적이고 냉철하게 점수를 매겨주세요. 점수만 간결하게 숫자로 답변해주세요. (예: 8.5)
-                """
-                response = model.generate_content([prompt, img])
+                api_content = []
+                prompt = ""
+                if strategy_image:
+                    prompt = f"""
+                    당신은 전문 차트 분석가입니다. 첨부된 두 개의 캔들차트 이미지('참고용 차트'와 '분석 대상 차트')를 비교 분석해주세요.
+                    두 차트의 패턴, 추세, 거래량 흐름 등이 얼마나 유사한지 최소 0점, 최대 10점 범위에서 0.5점 단위로 평가해주세요.
+                    사용자가 추가적인 텍스트 전략도 입력했다면, 그 내용도 함께 고려해주세요. (텍스트 전략: {strategy if strategy else "없음"})
+                    가장 중요한 평가 기준은 두 이미지의 '시각적 유사성'입니다. 점수만 간결하게 숫자로 답변해주세요. (예: 8.5)
+                    """
+                    api_content = [prompt, strategy_image, img]
+                else:
+                    chart_summary = f"종목: {ticker}, 현재가: ${chart_data['Close'].iloc[-1]:.2f}, 올해 변동률: {((chart_data['Close'].iloc[-1] / chart_data['Close'].iloc[0] - 1) * 100):.1f}%"
+                    prompt = f"""
+                    이 캔들차트를 보고 다음 투자 전략과 얼마나 일치하는지 최소 0점, 최대 10점 범위에서 0.5점 단위로 평가해주세요.
+                    투자 전략: {strategy}
+                    종목 정보: {chart_summary}
+                    종목 정보보다는 첨부한 캔들차트 이미지를 중점적으로 분석하여서, 비판적이고 냉철하게 점수를 매겨주세요. 점수만 간결하게 숫자로 답변해주세요. (예: 8.5)
+                    """
+                    api_content = [prompt, img]
                 
-                # 4. 결과 처리
+                response = model.generate_content(api_content)
                 numbers = re.findall(r'[0-9]+\.?[0-9]*', response.text)
                 if numbers:
                     score = float(numbers[0])
@@ -155,7 +172,6 @@ def main():
         
         analysis_progress.empty()
 
-        # 최종 결과
         st.write("---")
         st.write("## 🎯 최종 선발 종목")
         if selected_stocks:
