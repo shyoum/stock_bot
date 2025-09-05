@@ -6,4 +6,4 @@ pandas
 google-generativeai
 plotly
 pillow
-kaleido==0.1.*
+mplfinance

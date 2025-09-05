@@ -3,8 +3,7 @@ import FinanceDataReader as fdr
 import numpy as np
 import pandas as pd
 import google.generativeai as genai
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
+import mplfinance as mpf
 from PIL import Image
 import io
 import re
@@ -12,7 +11,7 @@ import time
 
 def main():
     st.title("종목 추천")
-    st.info("이 앱은 Plotly의 이미지 변환을 위해 'kaleido' 패키지가 필요할 수 있습니다. `pip install kaleido`")
+    st.info("이 앱은 차트 생성을 위해 'mplfinance' 패키지가 필요합니다. `pip install mplfinance`")
 
     # 사용자 입력
     api_key = st.text_input("Gemini API 키를 입력하세요", type="password")
@@ -95,30 +94,36 @@ def main():
                         status_placeholder.empty()
                         continue
 
-                    # 2. 차트 객체 생성
-                    status_placeholder.write(f"⏳ {ticker}: 차트 객체를 생성하는 중...")
-                    fig = make_subplots(rows=2, cols=1, shared_xaxes=True,
-                                      vertical_spacing=0.03, row_heights=[0.7, 0.3])
-                    # ... (차트 구성은 동일)
-                    fig.add_trace(go.Candlestick(x=chart_data.index, open=chart_data['Open'], high=chart_data['High'], low=chart_data['Low'], close=chart_data['Close'], increasing_line_color='red', decreasing_line_color='blue', name="Price"), row=1, col=1)
-                    fig.add_trace(go.Scatter(x=chart_data.index, y=chart_data['Close'].rolling(window=20).mean(), mode='lines', name='MA20', line=dict(color='orange', width=1)), row=1, col=1)
-                    fig.add_trace(go.Bar(x=chart_data.index, y=chart_data['Volume'], name="Volume"), row=2, col=1)
-                    fig.update_layout(title=f"{ticker} 6개월 차트", xaxis_rangeslider_visible=False, width=800, height=500, legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
-                    
-                    # 3. 차트를 이미지로 변환 (가장 문제가 될 수 있는 부분)
+                    # 2. 차트 이미지 생성 (mplfinance 사용)
                     img = None
+                    chart_image_bytes = None
                     try:
-                        status_placeholder.write(f"⏳ {ticker}: 차트를 이미지로 변환하는 중... (멈춤 현상 발생 시 'kaleido' 패키지 필요)")
-                        img_bytes = fig.to_image(format="png")
-                        img = Image.open(io.BytesIO(img_bytes))
-                    except Exception as img_e:
-                        status_placeholder.error(f"'{ticker}' 차트 이미지 변환 실패. 'kaleido' 패키지를 설치하세요. (pip install kaleido)")
-                        st.error(f"상세 오류: {img_e}")
+                        status_placeholder.write(f"⏳ {ticker}: mplfinance로 차트 이미지를 생성하는 중...")
+                        
+                        buf = io.BytesIO()
+                        mpf.plot(chart_data,
+                                 type='candle',
+                                 mav=(20),
+                                 volume=True,
+                                 title=f"\n{ticker} 6 Month Chart",
+                                 style='yahoo',
+                                 savefig=dict(fname=buf, dpi=150, format='png', bbox_inches='tight'))
+                        
+                        buf.seek(0)
+                        img = Image.open(buf)
+                        
+                        buf.seek(0)
+                        chart_image_bytes = buf.read()
+                        buf.close()
+
+                    except Exception as plot_e:
+                        status_placeholder.error(f"'{ticker}' 차트 이미지 생성 실패. 'mplfinance'가 설치되어 있는지 확인하세요.")
+                        st.error(f"상세 오류: {plot_e}")
                         time.sleep(3)
                         status_placeholder.empty()
                         continue
 
-                    # 4. Gemini API 호출
+                    # 3. Gemini API 호출
                     status_placeholder.write(f"⏳ {ticker}: Gemini API로 차트를 분석하는 중...")
                     chart_summary = f"""
                     종목: {ticker}, 현재가: ${chart_data['Close'].iloc[-1]:.2f}, 
@@ -132,7 +137,7 @@ def main():
                     """
                     response = model.generate_content([prompt, img])
                     
-                    # 5. 결과 처리
+                    # 4. 결과 처리
                     status_placeholder.write(f"⏳ {ticker}: 분석 결과 처리 중...")
                     score = 0
                     try:
@@ -147,7 +152,7 @@ def main():
                         continue
 
                     if score >= min_score:
-                        selected_stocks.append((ticker, score, fig))
+                        selected_stocks.append((ticker, score, chart_image_bytes))
                         status_placeholder.success(f"✅ {ticker} 선발! (점수: {score})")
                     else:
                         status_placeholder.info(f"❌ {ticker} 탈락 (점수: {score})")
@@ -168,9 +173,9 @@ def main():
         st.write("## 🎯 최종 선발 종목")
         if selected_stocks:
             selected_stocks.sort(key=lambda x: x[1], reverse=True)
-            for ticker, score, chart in selected_stocks:
+            for ticker, score, chart_image in selected_stocks:
                 st.write(f"### **{ticker}**: {score}점")
-                st.plotly_chart(chart, use_container_width=True, key=f"final_{ticker}")
+                st.image(chart_image, use_container_width=True, caption=f"{ticker} Chart")
         else:
             st.warning("기준 점수 이상인 종목이 없습니다.")
 
