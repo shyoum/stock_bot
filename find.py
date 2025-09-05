@@ -10,7 +10,7 @@ def main():
     st.title("종목 추천")
     
     # 사용자 입력
-    api_key = st.text_input("Gemini API 키", type="password")
+    api_key = st.text_input("Gemini API 키를 입력하세요", type="password")
     strategy = st.text_area("원하는 전략", height=100)
     min_score = st.slider("최소 점수", 1, 10, 7)
     
