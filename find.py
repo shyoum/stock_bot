@@ -10,13 +10,19 @@ import re
 import time
 
 def main():
-    st.title("종목 추천")
+    st.title("AI 차트 분석 기반 종목 추천")
 
-    # --- 공통 사용자 입력 ---
-    st.subheader("1. 기본 정보 입력")
+    # --- 통합 사용자 입력 ---
+    st.subheader("1. 분석 조건 입력")
     api_key = st.text_input("Gemini API 키를 입력하세요", type="password")
-    strategy = st.text_area("원하는 투자 전략을 '텍스트'로 입력하세요 (옵션 1, 2 공통 사용)", 
-                            placeholder="예: 최근 꾸준히 우상향하며, 거래량이 증가하는 종목", height=100)
+    
+    strategy_text = st.text_area("투자 전략을 '텍스트'로 입력하세요. (선택 사항)", 
+                                 placeholder="예: 최근 꾸준히 우상향하며, 거래량이 증가하는 종목", height=100)
+    
+    strategy_image_file = st.file_uploader("참고용 차트 이미지를 업로드하세요. (선택 사항)", 
+                                           type=['png', 'jpg', 'jpeg'], key="strategy_uploader")
+
+    min_score = st.slider("최소 점수 (유사도/일치도)", 1.0, 10.0, 7.0, 0.5)
 
     if not api_key:
         st.warning("API 키를 먼저 입력해 주세요.")
@@ -30,57 +36,17 @@ def main():
         st.error(f"API 키 설정에 실패했습니다: {e}")
         return
 
-    # --- 옵션 1: 단일 이미지 분석 ---
+    # --- 분석 시작 버튼 ---
     st.markdown("---")
-    st.subheader("옵션 1: 특정 차트 이미지 1개 분석하기")
-    uploaded_file = st.file_uploader("분석할 차트 이미지를 업로드하세요.", type=['png', 'jpg', 'jpeg'], key="single_uploader")
-
-    if uploaded_file is not None:
-        st.image(uploaded_file, caption="업로드된 차트 이미지", use_container_width=True)
-        if not strategy:
-            st.warning("상단의 '텍스트 투자 전략'을 입력해야 이미지를 분석할 수 있습니다.")
-        
-        if st.button("업로드 이미지 분석하기"):
-            if not strategy:
-                 st.error("텍스트 투자 전략을 입력해주세요.")
-            else:
-                with st.spinner("이미지를 분석 중입니다..."):
-                    try:
-                        img = Image.open(uploaded_file)
-                        prompt = f"""
-                        당신은 전문 차트 분석가입니다. 이 캔들차트 이미지를 보고 다음 투자 전략과 얼마나 일치하는지 최소 0점, 최대 10점 범위에서 0.5점 단위로 평가해주세요.
-                        투자 전략: {strategy}
-                        첨부한 캔들차트 이미지를 중점적으로 분석하여서, 비판적이고 냉철하게 점수를 매겨주세요. 점수만 간결하게 숫자로 답변해주세요. (예: 8.5)
-                        """
-                        response = model.generate_content([prompt, img])
-                        
-                        numbers = re.findall(r'[0-9]+\.?[0-9]*', response.text)
-                        if numbers:
-                            score = float(numbers[0])
-                            st.success(f"## 분석 점수: {score}점")
-                        else:
-                            st.warning(f"⚠️ 점수를 추출할 수 없습니다. (AI 응답: {response.text.strip()})")
-
-                    except Exception as e:
-                        st.error(f"이미지 분석 중 오류가 발생했습니다: {e}")
-
-    # --- 옵션 2: NASDAQ 종목 자동 탐색 ---
-    st.markdown("---")
-    st.subheader("옵션 2: NASDAQ에서 조건에 맞는 종목 찾기")
-    st.write("텍스트 전략을 사용하거나, 참고용 차트 이미지를 업로드하여 유사한 패턴의 종목을 찾을 수 있습니다.")
-    
-    strategy_image_file = st.file_uploader("참고용 차트 이미지를 업로드하세요. (선택 사항)", type=['png', 'jpg', 'jpeg'], key="strategy_uploader")
-    min_score = st.slider("최소 점수 (자동 분석용)", 1.0, 10.0, 7.0, 0.5)
-
-    if st.button("자동 종목 분석 시작"):
-        if not strategy and strategy_image_file is None:
-            st.error("자동 분석을 시작하려면 텍스트 전략을 입력하거나, 참고용 차트 이미지를 업로드해야 합니다.")
+    if st.button("🚀 종목 찾기 시작!"):
+        if not strategy_text and not strategy_image_file:
+            st.error("분석을 시작하려면 '텍스트 전략'을 입력하거나 '참고용 차트 이미지'를 업로드해야 합니다.")
             return
 
         strategy_image = None
         if strategy_image_file is not None:
             strategy_image = Image.open(strategy_image_file)
-            st.write("▼ 아래 참고 이미지를 기준으로 유사한 패턴의 종목을 검색합니다.")
+            st.write("▼ 아래 참고 이미지를 기준으로 분석합니다.")
             st.image(strategy_image, caption="참고용 차트 이미지", width=400)
 
         with st.spinner("NASDAQ 종목 리스트를 불러오는 중..."):
@@ -101,7 +67,7 @@ def main():
                 except Exception: continue
             progress_bar.empty()
         
-        if len(valid_tickers) < 1:
+        if not valid_tickers:
              st.error("분석에 유효한 종목을 찾지 못했습니다. 다시 시도해주세요.")
              return
 
@@ -131,28 +97,42 @@ def main():
                          savefig=dict(fname=buf, dpi=150, format='png', bbox_inches='tight'))
                 buf.seek(0)
                 chart_image_bytes = buf.read()
-                img = Image.open(io.BytesIO(chart_image_bytes))
+                img_to_analyze = Image.open(io.BytesIO(chart_image_bytes))
                 buf.close()
 
+                # --- 입력 조건에 따라 동적으로 프롬프트 및 컨텐츠 생성 ---
                 api_content = []
-                prompt = ""
-                if strategy_image:
-                    prompt = f"""
-                    당신은 전문 차트 분석가입니다. 첨부된 두 개의 캔들차트 이미지('참고용 차트'와 '분석 대상 차트')를 비교 분석해주세요.
-                    두 차트의 패턴, 추세, 거래량 흐름 등이 얼마나 유사한지 최소 0점, 최대 10점 범위에서 0.5점 단위로 평가해주세요.
-                    사용자가 추가적인 텍스트 전략도 입력했다면, 그 내용도 함께 고려해주세요. (텍스트 전략: {strategy if strategy else "없음"})
-                    가장 중요한 평가 기준은 두 이미지의 '시각적 유사성'입니다. 점수만 간결하게 숫자로 답변해주세요. (예: 8.5)
+                prompt = "당신은 전문 차트 분석가입니다. "
+                
+                # 시나리오 1: 텍스트와 이미지 모두 사용
+                if strategy_text and strategy_image:
+                    prompt += f"""
+                    첨부된 두 개의 캔들차트 이미지('참고용 차트'와 '분석 대상 차트')를 비교하고, 다음 '텍스트 전략'도 함께 고려하여 종합적으로 평가해주세요.
+                    - 텍스트 전략: {strategy_text}
+                    - 평가 기준: '참고용 차트'와의 시각적 유사성과 '텍스트 전략'과의 일치도를 모두 고려하여, 최종 점수를 0점에서 10점 사이에서 0.5점 단위로 매겨주세요.
+                    - 가장 중요한 것은 두 조건 모두 만족하는지 여부입니다. 점수만 간결하게 숫자로 답변해주세요. (예: 8.5)
                     """
-                    api_content = [prompt, strategy_image, img]
-                else:
+                    api_content = [prompt, strategy_image, img_to_analyze]
+                
+                # 시나리오 2: 이미지만 사용
+                elif strategy_image:
+                    prompt += f"""
+                    첨부된 두 개의 캔들차트 이미지('참고용 차트'와 '분석 대상 차트')를 비교 분석해주세요.
+                    두 차트의 패턴, 추세, 거래량 흐름 등이 얼마나 유사한지 시각적 유사성을 0점에서 10점 사이에서 0.5점 단위로 평가해주세요.
+                    점수만 간결하게 숫자로 답변해주세요. (예: 8.5)
+                    """
+                    api_content = [prompt, strategy_image, img_to_analyze]
+
+                # 시나리오 3: 텍스트만 사용
+                elif strategy_text:
                     chart_summary = f"종목: {ticker}, 현재가: ${chart_data['Close'].iloc[-1]:.2f}, 올해 변동률: {((chart_data['Close'].iloc[-1] / chart_data['Close'].iloc[0] - 1) * 100):.1f}%"
-                    prompt = f"""
-                    이 캔들차트를 보고 다음 투자 전략과 얼마나 일치하는지 최소 0점, 최대 10점 범위에서 0.5점 단위로 평가해주세요.
-                    투자 전략: {strategy}
-                    종목 정보: {chart_summary}
-                    종목 정보보다는 첨부한 캔들차트 이미지를 중점적으로 분석하여서, 비판적이고 냉철하게 점수를 매겨주세요. 점수만 간결하게 숫자로 답변해주세요. (예: 8.5)
+                    prompt += f"""
+                    이 캔들차트('분석 대상 차트')를 보고 다음 '텍스트 전략'과 얼마나 일치하는지 0점에서 10점 사이에서 0.5점 단위로 평가해주세요.
+                    - 텍스트 전략: {strategy_text}
+                    - 종목 정보(참고용): {chart_summary}
+                    - 첨부한 차트 이미지를 중점적으로 분석하여, 비판적이고 냉철하게 점수를 매겨주세요. 점수만 간결하게 숫자로 답변해주세요. (예: 8.5)
                     """
-                    api_content = [prompt, img]
+                    api_content = [prompt, img_to_analyze]
                 
                 response = model.generate_content(api_content)
                 numbers = re.findall(r'[0-9]+\.?[0-9]*', response.text)
