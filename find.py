@@ -11,7 +11,8 @@ import time
 
 def main():
     st.title("종목 추천")
-    st.info("전략 입력 또는 이미지 첨부 중 한 개 이상 입력해주세요. \n이미지는 'png', 'jpg', 'jpeg'를 첨부할 수 있습니다.")
+    st.info("전략 입력 또는 이미지 첨부 중 한 개 이상 입력해주세요.")
+    st.info("이미지는 'png', 'jpg', 'jpeg'를 첨부할 수 있습니다.")
 
     # --- 통합 사용자 입력 ---
     st.subheader("1. 분석 조건 입력")
