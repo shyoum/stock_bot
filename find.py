@@ -7,66 +7,93 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from PIL import Image
 import io
+import re
 
 def main():
     st.title("종목 추천")
-    
+
     # 사용자 입력
     api_key = st.text_input("Gemini API 키를 입력하세요", type="password")
-    strategy = st.text_area("원하는 전략", height=100)
+    strategy = st.text_area("원하는 투자 전략을 입력하세요 (예: 최근 6개월간 꾸준히 우상향하며, 거래량이 증가하는 종목)", height=100)
     min_score = st.slider("최소 점수", 1, 10, 7)
-    
+
     if not api_key or not strategy:
-        st.warning("API 키와 전략을 입력하세요.")
+        st.warning("API 키와 투자 전략을 입력해 주세요.")
         return
-    
+
     # API 설정
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel("gemini-2.5-flash")
-    
+    try:
+        genai.configure(api_key=api_key)
+        # 모델을 gemini-1.5-flash로 변경
+        model = genai.GenerativeModel("gemini-1.5-flash")
+    except Exception as e:
+        st.error(f"API 키 설정에 실패했습니다: {e}")
+        return
+
     if st.button("종목 분석 시작"):
-        with st.spinner("NASDAQ 종목 준비 중..."):
+        with st.spinner("NASDAQ 종목 리스트를 불러오는 중..."):
             # NASDAQ 종목 리스트 준비
             nasdaq_tickers = fdr.StockListing('NASDAQ')['Symbol'].tolist()
             np.random.shuffle(nasdaq_tickers)
-            
+
             # 유효한 종목만 필터링
             valid_tickers = []
-            for t in nasdaq_tickers[:200]:
-                try:
-                    df = fdr.DataReader(t, '2025-01-01')
-                    if not df.empty and len(df) > 100:
-                        valid_tickers.append(t)
-                        if len(valid_tickers) >= 50:
-                            break
-                except:
-                    continue
+            progress_bar = st.progress(0, text="유효한 종목을 찾는 중...")
+            max_valid_tickers = 50
             
-            # 5개씩 10개 그룹 생성
-            groups = [valid_tickers[i:i+5] for i in range(0, min(50, len(valid_tickers)), 5)]
+            for i, t in enumerate(nasdaq_tickers[:300]): # 더 많은 종목을 탐색
+                try:
+                    # 최소 1년치 데이터를 확인하여 안정적인 종목을 찾습니다.
+                    df = fdr.DataReader(t, '2023-01-01')
+                    if not df.empty and len(df) > 200:
+                        valid_tickers.append(t)
+                        progress_text = f"유효한 종목 찾는 중... ({len(valid_tickers)}/{max_valid_tickers})"
+                        progress_bar.progress(len(valid_tickers) / max_valid_tickers, text=progress_text)
+                        if len(valid_tickers) >= max_valid_tickers:
+                            break
+                except Exception:
+                    continue
+            progress_bar.empty()
         
+        if len(valid_tickers) < 5:
+             st.error("분석에 필요한 최소 5개의 유효한 종목을 찾지 못했습니다. 다시 시도해주세요.")
+             return
+
+        # 5개씩 그룹 생성
+        groups = [valid_tickers[i:i+5] for i in range(0, len(valid_tickers), 5)]
+
         selected_stocks = []
         
+        analysis_progress = st.progress(0, text="분석 시작...")
+        total_tickers_to_analyze = len(valid_tickers)
+        analyzed_count = 0
+
         for group_idx, group in enumerate(groups):
             if len(selected_stocks) >= 5:
                 break
-                
+
+            st.write(f"---")
             st.write(f"### 그룹 {group_idx+1} 분석 중...")
-            
+
             for ticker in group:
                 if len(selected_stocks) >= 5:
                     break
-                    
+                
+                analyzed_count += 1
+                progress_text = f"분석 중: {ticker} ({analyzed_count}/{total_tickers_to_analyze})"
+                analysis_progress.progress(analyzed_count / total_tickers_to_analyze, text=progress_text)
+
                 try:
                     # 6개월 데이터 가져오기
                     chart_data = fdr.DataReader(ticker, '2024-03-01')
-                    if chart_data.empty:
+                    if chart_data.empty or len(chart_data) < 20: # 데이터가 너무 적으면 건너뛰기
+                        st.write(f"📈 {ticker}: 데이터 부족으로 건너뜁니다.")
                         continue
-                    
+
                     # 캔들차트 생성
-                    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, 
-                                       vertical_spacing=0.02, row_heights=[0.7, 0.3])
-                    
+                    fig = make_subplots(rows=2, cols=1, shared_xaxes=True,
+                                      vertical_spacing=0.03, row_heights=[0.7, 0.3])
+
                     fig.add_trace(go.Candlestick(
                         x=chart_data.index,
                         open=chart_data['Open'],
@@ -78,69 +105,88 @@ def main():
                         name="Price"
                     ), row=1, col=1)
                     
+                    # 이동평균선 추가
+                    fig.add_trace(go.Scatter(
+                        x=chart_data.index, y=chart_data['Close'].rolling(window=20).mean(),
+                        mode='lines', name='MA20', line=dict(color='orange', width=1)
+                    ), row=1, col=1)
+
                     fig.add_trace(go.Bar(
-                        x=chart_data.index, 
+                        x=chart_data.index,
                         y=chart_data['Volume'],
                         name="Volume"
                     ), row=2, col=1)
-                    
+
                     fig.update_layout(
                         title=f"{ticker} 6개월 차트",
                         xaxis_rangeslider_visible=False,
                         width=800,
-                        height=600
+                        height=500,
+                        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
                     )
                     
-                    # 차트 표시
-                    st.plotly_chart(fig, use_container_width=True, key=f"chart_{ticker}")
-                    
+                    # --- 중간 차트 표시 제거 ---
+                    # st.plotly_chart(fig, use_container_width=True, key=f"chart_{ticker}")
+
                     # 차트를 이미지로 변환
                     img_bytes = fig.to_image(format="png")
                     img = Image.open(io.BytesIO(img_bytes))
-                    
+
                     # 기본 정보
                     chart_summary = f"""
                     종목: {ticker}
                     현재가: ${chart_data['Close'].iloc[-1]:.2f}
                     6개월 변동률: {((chart_data['Close'].iloc[-1] / chart_data['Close'].iloc[0] - 1) * 100):.1f}%
                     """
-                    
+
                     # Gemini로 차트 이미지와 함께 분석
                     prompt = f"""
-                    이 캔들차트를 보고 다음 투자 전략과 얼마나 일치하는지 1-10점으로 평가해주세요.
+                    당신은 전문 차트 분석가입니다. 이 캔들차트를 보고 다음 투자 전략과 얼마나 일치하는지 1점에서 10점 사이로 평가해주세요.
                     
                     투자 전략: {strategy}
                     
                     종목 정보: {chart_summary}
                     
-                    차트의 패턴, 추세, 거래량 등을 종합적으로 분석하여 점수만 숫자로 답변해주세요. (예: 8)
+                    차트의 패턴, 추세, 이동평균선, 거래량 등을 종합적으로 분석하여 점수만 숫자로 답변해주세요. (예: 8)
                     """
-                    
+
                     response = model.generate_content([prompt, img])
                     
+                    score = 0
                     try:
-                        score = int(response.text.strip())
-                    except:
-                        # 숫자 추출 시도
-                        import re
+                        # 응답 텍스트에서 숫자만 정확히 추출
                         numbers = re.findall(r'\d+', response.text)
-                        score = int(numbers[0]) if numbers else 0
-                    
+                        if numbers:
+                            score = int(numbers[0])
+                        else:
+                            st.write(f"⚠️ {ticker}: 점수를 추출할 수 없습니다. (응답: {response.text.strip()})")
+                            continue
+
+                    except (ValueError, IndexError):
+                        st.write(f"⚠️ {ticker}: 점수를 변환하는 데 실패했습니다. (응답: {response.text.strip()})")
+                        continue
+
                     st.write(f"**{ticker}**: {score}점")
-                    
+
                     if score >= min_score:
-                        selected_stocks.append((ticker, score))
+                        # 최종 표시를 위해 종목, 점수, 차트(fig)를 함께 저장
+                        selected_stocks.append((ticker, score, fig))
                         st.success(f"✅ {ticker} 선발! (점수: {score})")
                     else:
                         st.info(f"❌ {ticker} 탈락 (점수: {score})")
-                    
+
                 except Exception as e:
-                    st.error(f"{ticker} 분석 실패: {e}")
+                    st.error(f"{ticker} 분석 중 오류 발생: {e}")
                     continue
         
+        analysis_progress.empty()
+
         # 최종 결과
+        st.write("---")
         st.write("## 🎯 최종 선발 종목")
         if selected_stocks:
+            # 점수 순으로 정렬
+            selected_stocks.sort(key=lambda x: x[1], reverse=True)
             for ticker, score, chart in selected_stocks:
                 st.write(f"### **{ticker}**: {score}점")
                 # 선발된 종목만 차트 표시
@@ -149,5 +195,4 @@ def main():
             st.warning("기준 점수 이상인 종목이 없습니다.")
 
 if __name__ == "__main__":
-    from menu import show_menu
-    show_menu()
+    main()
