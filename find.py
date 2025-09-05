@@ -12,6 +12,7 @@ import time
 
 def main():
     st.title("종목 추천")
+    st.info("이 앱은 Plotly의 이미지 변환을 위해 'kaleido' 패키지가 필요할 수 있습니다. `pip install kaleido`")
 
     # 사용자 입력
     api_key = st.text_input("Gemini API 키를 입력하세요", type="password")
@@ -82,7 +83,6 @@ def main():
                 progress_text = f"분석 중: {ticker} ({analyzed_count}/{total_tickers_to_analyze})"
                 analysis_progress.progress(analyzed_count / total_tickers_to_analyze, text=progress_text)
                 
-                # 디버깅 및 상태 표시를 위한 placeholder
                 status_placeholder = st.empty()
 
                 try:
@@ -91,40 +91,34 @@ def main():
                     chart_data = fdr.DataReader(ticker, '2024-03-01')
                     if chart_data.empty or len(chart_data) < 20:
                         status_placeholder.warning(f"📈 {ticker}: 데이터가 부족하여 건너뜁니다.")
-                        time.sleep(1) # 사용자가 메시지를 볼 수 있도록 잠시 대기
+                        time.sleep(1)
                         status_placeholder.empty()
                         continue
 
-                    # 2. 차트 생성
-                    status_placeholder.write(f"⏳ {ticker}: 차트 이미지를 생성하는 중...")
+                    # 2. 차트 객체 생성
+                    status_placeholder.write(f"⏳ {ticker}: 차트 객체를 생성하는 중...")
                     fig = make_subplots(rows=2, cols=1, shared_xaxes=True,
                                       vertical_spacing=0.03, row_heights=[0.7, 0.3])
-
-                    fig.add_trace(go.Candlestick(
-                        x=chart_data.index, open=chart_data['Open'], high=chart_data['High'],
-                        low=chart_data['Low'], close=chart_data['Close'],
-                        increasing_line_color='red', decreasing_line_color='blue', name="Price"
-                    ), row=1, col=1)
+                    # ... (차트 구성은 동일)
+                    fig.add_trace(go.Candlestick(x=chart_data.index, open=chart_data['Open'], high=chart_data['High'], low=chart_data['Low'], close=chart_data['Close'], increasing_line_color='red', decreasing_line_color='blue', name="Price"), row=1, col=1)
+                    fig.add_trace(go.Scatter(x=chart_data.index, y=chart_data['Close'].rolling(window=20).mean(), mode='lines', name='MA20', line=dict(color='orange', width=1)), row=1, col=1)
+                    fig.add_trace(go.Bar(x=chart_data.index, y=chart_data['Volume'], name="Volume"), row=2, col=1)
+                    fig.update_layout(title=f"{ticker} 6개월 차트", xaxis_rangeslider_visible=False, width=800, height=500, legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
                     
-                    fig.add_trace(go.Scatter(
-                        x=chart_data.index, y=chart_data['Close'].rolling(window=20).mean(),
-                        mode='lines', name='MA20', line=dict(color='orange', width=1)
-                    ), row=1, col=1)
+                    # 3. 차트를 이미지로 변환 (가장 문제가 될 수 있는 부분)
+                    img = None
+                    try:
+                        status_placeholder.write(f"⏳ {ticker}: 차트를 이미지로 변환하는 중... (멈춤 현상 발생 시 'kaleido' 패키지 필요)")
+                        img_bytes = fig.to_image(format="png")
+                        img = Image.open(io.BytesIO(img_bytes))
+                    except Exception as img_e:
+                        status_placeholder.error(f"'{ticker}' 차트 이미지 변환 실패. 'kaleido' 패키지를 설치하세요. (pip install kaleido)")
+                        st.error(f"상세 오류: {img_e}")
+                        time.sleep(3)
+                        status_placeholder.empty()
+                        continue
 
-                    fig.add_trace(go.Bar(
-                        x=chart_data.index, y=chart_data['Volume'], name="Volume"
-                    ), row=2, col=1)
-
-                    fig.update_layout(
-                        title=f"{ticker} 6개월 차트", xaxis_rangeslider_visible=False,
-                        width=800, height=500,
-                        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
-                    )
-                    
-                    img_bytes = fig.to_image(format="png")
-                    img = Image.open(io.BytesIO(img_bytes))
-
-                    # 3. Gemini API 호출
+                    # 4. Gemini API 호출
                     status_placeholder.write(f"⏳ {ticker}: Gemini API로 차트를 분석하는 중...")
                     chart_summary = f"""
                     종목: {ticker}, 현재가: ${chart_data['Close'].iloc[-1]:.2f}, 
@@ -138,7 +132,7 @@ def main():
                     """
                     response = model.generate_content([prompt, img])
                     
-                    # 4. 결과 처리
+                    # 5. 결과 처리
                     status_placeholder.write(f"⏳ {ticker}: 분석 결과 처리 중...")
                     score = 0
                     try:
@@ -158,11 +152,12 @@ def main():
                     else:
                         status_placeholder.info(f"❌ {ticker} 탈락 (점수: {score})")
                     
-                    time.sleep(1) # 사용자가 메시지를 볼 수 있도록 잠시 대기
+                    time.sleep(1)
                     status_placeholder.empty()
 
                 except Exception as e:
-                    st.error(f"{ticker} 분석 중 오류 발생: {e}")
+                    status_placeholder.error(f"{ticker} 분석 중 예상치 못한 오류 발생: {e}")
+                    time.sleep(3)
                     status_placeholder.empty()
                     continue
         
