@@ -7,7 +7,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
 def main():
-    st.title("🔍 종목 발굴기")
+    st.title("종목 추천")
     
     # 사용자 입력
     api_key = st.text_input("Gemini API 키", type="password")
