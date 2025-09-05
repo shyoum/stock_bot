@@ -10,7 +10,8 @@ import re
 import time
 
 def main():
-    st.title("AI 차트 분석 기반 종목 추천")
+    st.title("종목 추천")
+    st.info("전략 입력 또는 이미지 첨부 중 한 개 이상 입력해주세요. 이미지는 'png', 'jpg', 'jpeg'를 첨부할 수 있습니다.")
 
     # --- 통합 사용자 입력 ---
     st.subheader("1. 분석 조건 입력")
@@ -28,7 +29,7 @@ def main():
         st.warning("최대 5개의 이미지만 업로드할 수 있습니다. 처음 5개의 이미지만 사용됩니다.")
         strategy_image_files = strategy_image_files[:5]
 
-    min_score = st.slider("최소 점수 (유사도/일치도)", 1.0, 10.0, 7.0, 0.5)
+    min_score = st.slider("최소 점수 (유사도/일치도)", 1, 10, 7, 1)
 
     if not api_key:
         st.warning("API 키를 먼저 입력해 주세요.")
@@ -118,7 +119,7 @@ def main():
                 # 시나리오 1: 텍스트와 이미지 모두 사용
                 if strategy_text and strategy_images:
                     prompt += f"""
-                    첨부된 {len(strategy_images)}개의 '참고용 차트'와 1개의 '분석 대상 차트'를 비교하고, 다음 '텍스트 전략'도 함께 고려하여 종합적으로 평가해주세요.
+                    첨부된 {len(strategy_images)}개의 '참고용 차트'와 '텍스트 전략'을 함께 고려하여 '분석 대상 차트'를 평가해주세요.
                     - 텍스트 전략: {strategy_text}
                     - 평가 기준: '참고용 차트'들과의 전반적인 시각적 유사성과 '텍스트 전략'과의 일치도를 모두 고려하여, 최종 점수를 0점에서 10점 사이에서 0.5점 단위로 매겨주세요.
                     - 가장 중요한 것은 두 조건 모두 만족하는지 여부입니다. 점수만 간결하게 숫자로 답변해주세요. (예: 8.5)
