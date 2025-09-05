@@ -1,6 +1,6 @@
 streamlit
 yfinance
-FinanceDataReader
+finance-datareader
 numpy
 pandas
 google-generativeai
