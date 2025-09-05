@@ -5,6 +5,8 @@ import pandas as pd
 import google.generativeai as genai
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+from PIL import Image
+import io
 
 def main():
     st.title("종목 추천")
@@ -71,6 +73,8 @@ def main():
                         high=chart_data['High'],
                         low=chart_data['Low'],
                         close=chart_data['Close'],
+                        increasing_line_color='red',
+                        decreasing_line_color='blue',
                         name="Price"
                     ), row=1, col=1)
                     
@@ -87,37 +91,40 @@ def main():
                         height=600
                     )
                     
-                    # 차트 표시 후 분석
+                    # 차트 표시
                     st.plotly_chart(fig, use_container_width=True, key=f"chart_{ticker}")
                     
-                    # 차트 데이터를 텍스트로 변환하여 분석
+                    # 차트를 이미지로 변환
+                    img_bytes = fig.to_image(format="png")
+                    img = Image.open(io.BytesIO(img_bytes))
+                    
+                    # 기본 정보
                     chart_summary = f"""
                     종목: {ticker}
-                    기간: 최근 6개월
                     현재가: ${chart_data['Close'].iloc[-1]:.2f}
-                    최고가: ${chart_data['High'].max():.2f}
-                    최저가: ${chart_data['Low'].min():.2f}
-                    변동률: {((chart_data['Close'].iloc[-1] / chart_data['Close'].iloc[0] - 1) * 100):.1f}%
-                    평균 거래량: {chart_data['Volume'].mean():.0f}
+                    6개월 변동률: {((chart_data['Close'].iloc[-1] / chart_data['Close'].iloc[0] - 1) * 100):.1f}%
                     """
                     
-                    # Gemini로 분석
+                    # Gemini로 차트 이미지와 함께 분석
                     prompt = f"""
-                    다음 주식 정보를 보고 이 전략과 얼마나 일치하는지 1-10점으로 평가해주세요.
+                    이 캔들차트를 보고 다음 투자 전략과 얼마나 일치하는지 1-10점으로 평가해주세요.
                     
-                    전략: {strategy}
+                    투자 전략: {strategy}
                     
-                    {chart_summary}
+                    종목 정보: {chart_summary}
                     
-                    점수만 숫자로 답변해주세요. (예: 8)
+                    차트의 패턴, 추세, 거래량 등을 종합적으로 분석하여 점수만 숫자로 답변해주세요. (예: 8)
                     """
                     
-                    response = model.generate_content(prompt)
+                    response = model.generate_content([prompt, img])
                     
                     try:
                         score = int(response.text.strip())
                     except:
-                        score = 0
+                        # 숫자 추출 시도
+                        import re
+                        numbers = re.findall(r'\d+', response.text)
+                        score = int(numbers[0]) if numbers else 0
                     
                     st.write(f"**{ticker}**: {score}점")
                     
