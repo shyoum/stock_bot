@@ -1,5 +1,9 @@
+streamlit
 yfinance
+FinanceDataReader
+numpy
+pandas
+google-generativeai
 plotly
-google.generativeai
-kaleido
-finance-datareader
+pillow
+kaleido==0.1.*
