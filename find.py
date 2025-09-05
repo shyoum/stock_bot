@@ -24,7 +24,7 @@ def main():
     # API 설정
     try:
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel("gemini-1.5-flash")
+        model = genai.GenerativeModel("gemini-2.5-flash")
     except Exception as e:
         st.error(f"API 키 설정에 실패했습니다: {e}")
         return
@@ -128,7 +128,7 @@ def main():
                     6개월 변동률: {((chart_data['Close'].iloc[-1] / chart_data['Close'].iloc[0] - 1) * 100):.1f}%
                     """
                     prompt = f"""
-                    이 캔들차트를 보고 다음 투자 전략과 얼마나 일치하는지 10점 만점에 0.5점 단위로 평가해주세요.
+                    이 캔들차트를 보고 다음 투자 전략과 얼마나 일치하는지 최소 0점, 최대 10점 범위에서 0.5점 단위로 평가해주세요.
                     투자 전략: {strategy}
                     종목 정보: {chart_summary}
                     종목 정보보다는 첨부한 캔들차트 이미지를 중점적으로 분석하여서, 비판적이고 냉철하게 점수를 매겨주세요.
