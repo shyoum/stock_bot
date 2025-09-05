@@ -70,7 +70,7 @@ def main():
     st.write("텍스트 전략을 사용하거나, 참고용 차트 이미지를 업로드하여 유사한 패턴의 종목을 찾을 수 있습니다.")
     
     strategy_image_file = st.file_uploader("참고용 차트 이미지를 업로드하세요. (선택 사항)", type=['png', 'jpg', 'jpeg'], key="strategy_uploader")
-    min_score = st.slider("최소 점수 (자동 분석용)", 1, 10, 7, 0)
+    min_score = st.slider("최소 점수 (자동 분석용)", 1.0, 10.0, 7.0, 0.5)
 
     if st.button("자동 종목 분석 시작"):
         if not strategy and strategy_image_file is None:
