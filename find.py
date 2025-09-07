@@ -41,7 +41,7 @@ def main():
     # API 설정
     try:
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel("gemini-2.5-pro")
+        model = genai.GenerativeModel("gemma-3-27b-it")
     except Exception as e:
         st.error(f"API 키 설정에 실패했습니다: {e}")
         return
