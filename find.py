@@ -39,7 +39,7 @@ def main():
     # API 설정
     try:
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel("gemini-1.5-flash")
+        model = genai.GenerativeModel("gemini-2.5-flash")
     except Exception as e:
         st.error(f"API 키 설정에 실패했습니다: {e}")
         return
