@@ -8,6 +8,8 @@ from PIL import Image
 import io
 import re
 import time
+import warnings
+warnings.filterwarnings('ignore')
 
 def main():
     st.title("종목 추천")
