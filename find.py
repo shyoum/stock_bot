@@ -8,6 +8,8 @@ from PIL import Image
 import io
 import re
 import time
+import warnings
+warnings.filterwarnings('ignore')
 
 def main():
     st.title("종목 추천")
@@ -15,7 +17,7 @@ def main():
     st.info("이미지는 'png', 'jpg', 'jpeg'를 첨부할 수 있습니다.")
 
     # --- 통합 사용자 입력 ---
-    st.subheader("1. 분석 조건 입력")
+    st.subheader("1. 프롬프트 입력")
     api_key = st.text_input("Gemini API 키를 입력하세요", type="password")
     
     strategy_text = st.text_area("투자 전략을 '텍스트'로 입력하세요. (선택 사항)", 
@@ -39,7 +41,7 @@ def main():
     # API 설정
     try:
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel("gemini-1.5-flash")
+        model = genai.GenerativeModel("gemini-2.5-flash-image-preview")
     except Exception as e:
         st.error(f"API 키 설정에 실패했습니다: {e}")
         return
@@ -181,4 +183,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
