@@ -1,5 +1,5 @@
 import streamlit as st
-import FinanceDataReader as fdr
+import yfinance as yf
 import numpy as np
 import pandas as pd
 import google.generativeai as genai
@@ -65,7 +65,9 @@ def main():
                     st.image(img, caption=f"참고용 차트 {idx+1}", use_column_width=True)
 
         with st.spinner("S&P500 종목 리스트를 불러오는 중..."):
-            sp500_tickers = fdr.StockListing('S&P500')['Symbol'].tolist()
+            # S&P500 종목 리스트 가져오기
+            sp500 = pd.read_html('https://en.wikipedia.org/wiki/List_of_S%26P_500_companies')[0]
+            sp500_tickers = sp500['Symbol'].str.replace('.', '-').tolist()
             np.random.shuffle(sp500_tickers)
             valid_tickers = []
             progress_bar = st.progress(0, text="유효한 종목을 찾는 중...")
@@ -73,7 +75,8 @@ def main():
             
             for i, t in enumerate(sp500_tickers[:300]):
                 try:
-                    df = fdr.DataReader(t, '2025-01-01')
+                    stock = yf.Ticker(t)
+                    df = stock.history(start='2025-01-01')
                     if not df.empty and len(df) > 50:
                         valid_tickers.append(t)
                         progress_text = f"유효한 종목 찾는 중... ({len(valid_tickers)}/{max_valid_tickers})"
@@ -101,7 +104,8 @@ def main():
             analysis_progress.progress(analyzed_count / len(valid_tickers), text=progress_text)
             
             try:
-                chart_data = fdr.DataReader(ticker, '2025-01-01')
+                stock = yf.Ticker(ticker)
+                chart_data = stock.history(start='2025-01-01')
                 if chart_data.empty or len(chart_data) < 20:
                     st.warning(f"📈 {ticker}: 데이터가 부족하여 건너뜁니다.")
                     continue
