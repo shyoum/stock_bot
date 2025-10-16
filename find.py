@@ -64,14 +64,14 @@ def main():
                 with cols[idx]:
                     st.image(img, caption=f"참고용 차트 {idx+1}", use_column_width=True)
 
-        with st.spinner("NASDAQ 종목 리스트를 불러오는 중..."):
-            nasdaq_tickers = fdr.StockListing('NASDAQ')['Symbol'].tolist()
-            np.random.shuffle(nasdaq_tickers)
+        with st.spinner("S&P500 종목 리스트를 불러오는 중..."):
+            sp500_tickers = fdr.StockListing('S&P500')['Symbol'].tolist()
+            np.random.shuffle(sp500_tickers)
             valid_tickers = []
             progress_bar = st.progress(0, text="유효한 종목을 찾는 중...")
             max_valid_tickers = 50
             
-            for i, t in enumerate(nasdaq_tickers[:300]):
+            for i, t in enumerate(sp500_tickers[:300]):
                 try:
                     df = fdr.DataReader(t, '2025-01-01')
                     if not df.empty and len(df) > 50:
