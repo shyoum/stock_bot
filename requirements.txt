@@ -8,3 +8,4 @@ plotly
 pillow
 mplfinance
 requests
+# Updated: 2025-11-17 for gemini-2.5-flash-image
