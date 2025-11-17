@@ -38,7 +38,7 @@ def main():
         st.warning("API 키를 먼저 입력해 주세요.")
         return
 
-    # API 설정
+    # API 설정 (gemini-2.5-flash-image: stable version)
     try:
         genai.configure(api_key=api_key)
         model = genai.GenerativeModel("gemini-2.5-flash-image")
